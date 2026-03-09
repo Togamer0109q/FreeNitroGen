@@ -1,225 +1,104 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Experimento Troll</title>
+<meta charset="UTF-8">
+<title>Entrar</title>
+
 <style>
-  html,body{
-    height:100%;
-    margin:0;
-    background:black;
-    overflow:hidden;
-    /* ocultar cursor */
-    cursor: none;
-  }
-  #player{
-    position:fixed;
-    inset:0; /* top:0; right:0; bottom:0; left:0 */
-    width:100vw;
-    height:100vh;
-    border:0;
-    z-index:1;
-    object-fit:cover;
-  }
+html,body{
+  margin:0;
+  padding:0;
+  overflow:hidden;
+  background:black;
+  font-family:sans-serif;
+}
 
-  /* Overlay para bloquear interacciones con el iframe */
-  #bloqueo{
-    position:fixed;
-    inset:0;
-    z-index:2;
-    pointer-events:auto; /* absorbe clicks */
-    background: rgba(0,0,0,0); /* invisible */
-  }
+/* video */
+iframe{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100vw;
+  height:100vh;
+  border:none;
+  filter: blur(20px);
+  transition: filter 0.6s;
+}
 
-  /* Barra superior falsa (opcional) */
-  #fakebar{
-    position:fixed;
-    top:12px;
-    left:50%;
-    transform:translateX(-50%);
-    z-index:3;
-    font-family:sans-serif;
-    color:#fff;
-    background: rgba(0,0,0,0.25);
-    padding:6px 12px;
-    border-radius:8px;
-    user-select:none;
-    pointer-events:none;
-  }
+/* pantalla de entrada */
+#pantalla{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100vw;
+  height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,0.6);
+  z-index:10;
+}
 
-  /* mensaje para salir (se muestra si el usuario presiona escape repetidamente) */
-  #hint{
-    position:fixed;
-    bottom:18px;
-    left:50%;
-    transform:translateX(-50%);
-    color:#ddd;
-    font-family:sans-serif;
-    z-index:4;
-    background: rgba(0,0,0,0.30);
-    padding:6px 10px;
-    border-radius:6px;
-    display:none;
-    pointer-events:none;
-  }
+/* texto */
+#boton{
+  color:white;
+  font-size:40px;
+  background:rgba(0,0,0,0.5);
+  padding:20px 40px;
+  border-radius:15px;
+  cursor:pointer;
+  transition:0.3s;
+}
+
+#boton:hover{
+  transform:scale(1.1);
+}
 </style>
+
 </head>
 <body>
 
-<!-- IFrame con enablejsapi para controlar desde JS -->
-<iframe id="player"
-  src="https://www.youtube.com/embed/q3sUHAeeOqE?autoplay=1&mute=1&controls=0&loop=1&playlist=q3sUHAeeOqE&modestbranding=1&rel=0&enablejsapi=1"
-  title="YouTube"
-  allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-  frameborder="0"
-  referrerpolicy="strict-origin-when-cross-origin"
-  allowfullscreen>
+<iframe id="video"
+src="https://www.youtube.com/embed/q3sUHAeeOqE?controls=0&loop=1&playlist=q3sUHAeeOqE&enablejsapi=1"
+allow="autoplay; encrypted-media; fullscreen"
+allowfullscreen>
 </iframe>
 
-<div id="bloqueo" aria-hidden="true"></div>
-<div id="fakebar">Actualizando Windows... 0%</div>
-<div id="hint">Presiona F11 para intentar pantalla completa de verdad.</div>
+<div id="pantalla">
+  <div id="boton">Haz click para entrar</div>
+</div>
 
-<!-- Cargar la API de iframe de YouTube -->
 <script src="https://www.youtube.com/iframe_api"></script>
+
 <script>
-/* variables globales */
+
 let player;
-let firstUserGesture = false;
 
-/* Inicializar player cuando la API está lista */
 function onYouTubeIframeAPIReady(){
-  player = new YT.Player('player', {
-    events: {
-      'onReady': onPlayerReady,
-      'onStateChange': onPlayerStateChange
-    }
-  });
+  player = new YT.Player('video');
 }
 
-function onPlayerReady(e){
-  // intentar play (algunos navegadores ya lo harán por autoplay+mute)
-  try { player.playVideo(); } catch(e){}
-}
+document.getElementById("pantalla").onclick = () => {
 
-/* Si el usuario pausa, lo volvemos a reproducir inmediatamente */
-function onPlayerStateChange(e){
-  // YT.PlayerState.PAUSED === 2
-  if(e.data === YT.PlayerState.PAUSED){
-    try { player.playVideo(); } catch(err){}
-  }
-}
+  // quitar blur
+  document.getElementById("video").style.filter = "blur(0px)";
 
-/* Bloquear acciones de teclado comunes */
-window.addEventListener('keydown', (ev) => {
-  // teclas que queremos interceptar
-  const blocked = [
-    ' ',   // espacio
-    'k','K','j','J', // youtube shortcuts
-    'F5','F11','F12','Escape'
-  ];
+  // quitar overlay
+  document.getElementById("pantalla").style.display = "none";
 
-  // combos: ctrl+w, ctrl+r, ctrl+t, ctrl+tab
-  if ((ev.ctrlKey || ev.metaKey) && (ev.key.toLowerCase() === 'w' || ev.key.toLowerCase() === 'r' || ev.key.toLowerCase() === 't')) {
-    ev.preventDefault();
-    ev.stopPropagation();
-    showHintTemp();
-    return;
+  // reproducir con audio
+  if(player){
+    player.playVideo();
   }
 
-  // bloquear ciertas teclas básicas
-  if(blocked.includes(ev.key) || blocked.includes(ev.code)){
-    ev.preventDefault();
-    ev.stopPropagation();
-    // si intentan pausar con espacio, forzamos play
-    if(player && typeof player.playVideo === 'function'){
-      try { player.playVideo(); } catch(e){}
-    }
-  }
-});
-
-/* Previene clic derecho */
-window.addEventListener('contextmenu', e => e.preventDefault());
-
-/* Si el iframe recibe un pause (ej: desde el menú del video), forzamos play */
-function forcePlayIfPaused(){
-  if(!player) return;
-  const state = player.getPlayerState && player.getPlayerState();
-  if(state === YT.PlayerState.PAUSED){
-    try { player.playVideo(); } catch(e){}
-  }
-}
-
-/* cada 700ms comprobamos estado y forzamos play si está pausado */
-setInterval(forcePlayIfPaused, 700);
-
-/* pedir pantalla completa en la primera interacción del usuario */
-function requestFullscreenOnce(){
-  if(firstUserGesture) return;
-  firstUserGesture = true;
+  // pantalla completa
   const el = document.documentElement;
-  if (el.requestFullscreen) {
-    el.requestFullscreen().catch(()=>{/* algunos navegadores bloquean */});
-  } else if (el.webkitRequestFullScreen) {
-    el.webkitRequestFullScreen();
+  if(el.requestFullscreen){
+    el.requestFullscreen();
   }
+
 }
 
-/* activar fullscreen al primer click/touch del usuario */
-['click','touchstart','keydown'].forEach(ev => {
-  window.addEventListener(ev, requestFullscreenOnce, {once:true,passive:true});
-});
-
-/* impedir que recarguen o cierren sin confirmación */
-window.addEventListener('beforeunload', function(e){
-  // Nota: los navegadores muestran su propio mensaje, no el tuyo
-  e.preventDefault();
-  e.returnValue = '';
-  return '';
-});
-
-/* overlay absorbe clicks; si quieres que una interacción solicite fullscreen,
-   puedes hacer que el primer click en el overlay solicite fullscreen (ya implementado arriba) */
-const overlay = document.getElementById('bloqueo');
-overlay.addEventListener('click', function(e){
-  // mostrar un mensaje breve o animación falsa
-  const bar = document.getElementById('fakebar');
-  let p = 0;
-  bar.style.opacity = '1';
-  const t = setInterval(()=>{
-    p += Math.random() * 6 + 2;
-    bar.textContent = 'Actualizando Windows... ' + Math.min(99, Math.floor(p)) + '%';
-    if(p >= 98){
-      clearInterval(t);
-      bar.textContent = 'Actualizando Windows... 99%';
-    }
-  }, 120);
-});
-
-/* Mostrar hint temporal */
-function showHintTemp(){
-  const h = document.getElementById('hint');
-  h.style.display = 'block';
-  setTimeout(()=> h.style.display = 'none', 2000);
-}
-
-/* Si el usuario presiona Escape varias veces, mostrar hint */
-let escCount = 0;
-window.addEventListener('keyup', (ev)=>{
-  if(ev.key === 'Escape'){ escCount++; }
-  if(escCount >= 3){
-    showHintTemp();
-    escCount = 0;
-  }
-});
-
-
-document.addEventListener('visibilitychange', () => {
-  if(document.visibilityState === 'visible'){
-    try{ player.playVideo(); } catch(e){}
-  }
-});
 </script>
 
 </body>
